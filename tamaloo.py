@@ -58,6 +58,8 @@ class Game:
                     player.get_cards().remove(card)
                     print("Player " + str(player.get_player_index() + 1) +
                           " remembered correctly a card")
+                    print(self.__players)
+                    input()
 
     def find_winner(self) -> list(int):
         min_value = 1000000
@@ -83,9 +85,9 @@ class Game:
 
     def set_thrown_card(self, card: Card) -> None:
         self.__thrown_card = card
+        card.side_effect()
         card.set_owner(None)
         card.set_known(None)
-        card.side_effect()
 
     def get_thrown_card(self) -> Card:
         return self.__thrown_card
@@ -109,6 +111,7 @@ class Hand:
 
     def draw_and_replace(self) -> None:
         new_card = self.get_game().get_deck().pop()
+        new_card.set_owner(self)
         replacement_scores = []
         for old_card in self.__cards:
             replacement_scores.append(self.get_ai().replace_card(new_card))
@@ -166,7 +169,7 @@ class Hand:
         hand2.append(c1)
         c1.set_known(False)
         tmp_owner = c1.get_owner()
-        c1.set_owner(c2)
+        c1.set_owner(c2.get_owner())
         c2.set_owner(tmp_owner)
         c2.set_known(False)
         hand1.remove(c1)
@@ -199,9 +202,13 @@ class Card:
         return self.__known
 
     def set_owner(self, player: Hand) -> None:
+        if isinstance(self.__owner, Card):
+            print("PROBELMA")
         self.__owner = player
 
     def get_owner(self) -> Hand:
+        if isinstance(self.__owner, Card):
+            print("PROBELMA")
         return self.__owner
 
     def get_value(self) -> int:
@@ -236,22 +243,22 @@ class AI:
     score = int
 
     def replace_card(self, new_card: Card) -> score:
-        pass
+        raise Exception("empty replace card ai")
 
     def keep_cards(self, new_card: Card) -> score:
-        pass
+        raise Exception("emtpy keep card ai")
 
     def pick_king_target(self) -> int:
-        pass
+        raise Exception("emtpy king ai")
 
     def pick_queen_targets(self) -> list[Card]:
-        pass
+        raise Exception("emtpy queen ai")
 
     def pick_joker_target(self) -> Card:
-        pass
+        raise Exception("emtpy joker ai")
 
     def call_tamaloo(self) -> bool:
-        pass
+        raise Exception("emtpy tamaloo call ai")
 
 
 class dumb_player(AI):
@@ -274,7 +281,7 @@ class dumb_player(AI):
     def pick_king_target(self) -> int:
         available_indexes = list(
             range(self.__hand.get_game().get_players_number()))
-        available_indexes.remove(self.__hand.get_player_index)
+        available_indexes.remove(self.__hand.get_player_index())
         return random.choice(available_indexes)
 
     def pick_queen_targets(self) -> list[Card]:
@@ -290,6 +297,9 @@ class dumb_player(AI):
         picked_cards.append(p1.get_card())
         picked_cards.append(p2.get_card())
         return picked_cards
+
+    def pick_joker_target(self) -> Card:
+        return self.__hand.get_card()
 
 
 if __name__ == "__main__":
