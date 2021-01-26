@@ -8,9 +8,7 @@ class Game:
         self.__players = []
         self.__thrown_card = None
         self.__runned_cycles = 0
-        for x in range(4):
-            for i in list(range(1, 14)):
-                self.__deck.append(Card(i))
+        self.refill_deck()
         random.shuffle(self.__deck)
         for p in range(players):
             self.__players.append(Hand(self, p, dumb_player))
@@ -42,6 +40,10 @@ class Game:
             hand.draw_and_replace()
             self.throw_same_card()
             tamaloo = tamaloo or hand.get_ai().call_tamaloo()
+            if (len(self.__deck) == 0):
+                print("deck refilled")
+                self.refill_deck()
+                input()
         self.__runned_cycles += 1
         return tamaloo
 
@@ -51,10 +53,15 @@ class Game:
         self.simulate_cycle()
         self.find_winner()
 
+    def refill_deck(self) -> None:
+        for x in range(4):
+            for i in list(range(1, 14)):
+                self.__deck.append(Card(i))
+
     def throw_same_card(self):
         for player in self.__players:
             for card in player.get_cards():
-                if random.choice([True, False]) and card == self.__thrown_card and card.get_known() :
+                if random.choice([True, False]) and card == self.__thrown_card and card.get_known():
                     player.get_cards().remove(card)
                     print("Player " + str(player.get_player_index() + 1) +
                           " remembered correctly a card")
@@ -64,8 +71,12 @@ class Game:
     def find_winner(self) -> list(int):
         min_value = 1000000
         winner_indexes = []
+        all_scores = []
         for index, player in enumerate(self.__players):
-            cards_sum = sum(player.__cards)
+            cards_sum = 0
+            for card in player.get_cards():
+                cards_sum += card.get_value()
+            all_scores.append(cards_sum)
             if cards_sum < min_value:
                 winner_indexes = []
                 min_value = cards_sum
@@ -79,13 +90,14 @@ class Game:
             winners = ""
             for index in winner_indexes:
                 winners += (str(index) + " ")
-            print("The winner is player " + winners)
+            print("The winner are players " + winners)
+        print(all_scores)
 
         return winner_indexes
 
     def set_thrown_card(self, card: Card) -> None:
         self.__thrown_card = card
-        card.side_effect()
+        # card.side_effect()
         card.set_owner(None)
         card.set_known(None)
 
@@ -163,8 +175,8 @@ class Hand:
         return "p" + str(self.__player_index + 1)
 
     def switch_cards_between_players(c1: Card, c2: Card) -> None:
-        hand1 = c1.get_owner().__cards
-        hand2 = c2.get_owner().__cards
+        hand1 = c1.get_owner().get_cards()
+        hand2 = c2.get_owner().get_cards()
         hand1.append(c2)
         hand2.append(c1)
         c1.set_known(False)
@@ -222,13 +234,17 @@ class Card:
         elif (self.__value == 11):
             self.__joker()
 
-    def __king(self,) -> None:
+    def __king(self) -> None:
         player_index = self.get_owner().get_ai().pick_king_target()
         self.get_owner().get_game().get_player(player_index).draw()
 
     def __queen(self) -> None:
-        c1, c2 = self.get_owner().get_ai().pick_queen_targets()
-        Hand.switch_cards_between_players(c1, c2)
+        cards = self.get_owner().get_ai().pick_queen_targets()
+        if len(cards) != 2:
+            print("problema")
+        if cards[1] is None:
+            print("problema")
+        Hand.switch_cards_between_players(cards[0], cards[1])
 
     def __joker(self) -> None:
         card = self.get_owner().get_ai().pick_joker_target()
@@ -236,11 +252,13 @@ class Card:
 
 
 class AI:
-    def __init__(self, player: Hand):
-        raise Exception(
-            "Can't instantiate this class without overriding its methods")
-
     score = int
+
+    def __init__(self, player: Hand):
+        self.__hand = player
+
+    def get_player_hand(self):
+        return self.__hand
 
     def replace_card(self, new_card: Card) -> score:
         raise Exception("empty replace card ai")
@@ -258,12 +276,14 @@ class AI:
         raise Exception("emtpy joker ai")
 
     def call_tamaloo(self) -> bool:
-        raise Exception("emtpy tamaloo call ai")
+        if len(self.get_player_hand().get_cards()) == 0:
+            print("Tamaloo was called because an hand was emtpy")
+            return True
 
 
 class dumb_player(AI):
     def __init__(self, player: Hand):
-        self.__hand = player
+        super().__init__(player)
 
     def replace_card(self, new_card: Card) -> AI.score:
         return random.choice([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -272,7 +292,8 @@ class dumb_player(AI):
         return random.choice([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
     def call_tamaloo(self) -> bool:
-        if self.__hand.get_game().get_runned_cycles() > 5:
+        super().call_tamaloo()
+        if self.get_player_hand().get_game().get_runned_cycles() > 5:
             tamaloo = random.choice([True, False, False])
             if tamaloo:
                 print("Tamaloo was called by a dumb player")
@@ -280,28 +301,28 @@ class dumb_player(AI):
 
     def pick_king_target(self) -> int:
         available_indexes = list(
-            range(self.__hand.get_game().get_players_number()))
-        available_indexes.remove(self.__hand.get_player_index())
+            range(self.get_player_hand().get_game().get_players_number()))
+        available_indexes.remove(self.get_player_hand().get_player_index())
         return random.choice(available_indexes)
 
     def pick_queen_targets(self) -> list[Card]:
         picked_cards = []
         available_indexes = list(
-            range(self.__hand.get_game().get_players_number()))
+            range(self.get_player_hand().get_game().get_players_number()))
         i1 = random.choice(available_indexes)
         i2 = i1
         while i2 == i1:
             i2 = random.choice(available_indexes)
-        p1 = self.__hand.get_game().get_player(i1)
-        p2 = self.__hand.get_game().get_player(i2)
+        p1 = self.get_player_hand().get_game().get_player(i1)
+        p2 = self.get_player_hand().get_game().get_player(i2)
         picked_cards.append(p1.get_card())
         picked_cards.append(p2.get_card())
         return picked_cards
 
     def pick_joker_target(self) -> Card:
-        return self.__hand.get_card()
+        return self.get_player_hand().get_card()
 
 
 if __name__ == "__main__":
-    game = Game(2)
+    game = Game(6)
     game.simulate_game()
