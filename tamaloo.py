@@ -40,6 +40,7 @@ class Game:
             self.print_game_info()
             input()
             hand.draw_and_replace()
+            self.throw_same_card()
             tamaloo = tamaloo or hand.get_ai().call_tamaloo()
         self.__runned_cycles += 1
         return tamaloo
@@ -49,6 +50,14 @@ class Game:
             pass
         self.simulate_cycle()
         self.find_winner()
+
+    def throw_same_card(self):
+        for player in self.__players:
+            for card in player.get_cards():
+                if random.choice([True, False]) and card == self.__thrown_card and card.get_known() :
+                    player.get_cards().remove(card)
+                    print("Player " + str(player.get_player_index() + 1) +
+                          " remembered correctly a card")
 
     def find_winner(self) -> list(int):
         min_value = 1000000
@@ -136,6 +145,9 @@ class Hand:
             return random.choice(self.__cards)
         return self.__cards[index]
 
+    def get_cards(self) -> list[Card]:
+        return self.__cards
+
     def __add_card(self, card: Card) -> None:
         card.set_owner(self)
         card.set_known(True)
@@ -168,17 +180,23 @@ class Card:
         self.__owner = None
 
     def __repr__(self) -> str:
-        if self.__known is None:
-            seen = ""
-        else:
+        seen = ""
+        if self.__known is not None:
             seen = "k" if self.__known else "u"
-        if self.__owner is None:
-            return str(self.__value) + seen 
-        else:
+        if self.__owner is not None:
             return str(self.__value) + seen + "-p" + str(self.get_owner().get_player_index() + 1)
+        return str(self.__value) + seen
+
+    def __eq__(self, other: Card) -> bool:
+        if isinstance(other, Card):
+            return self.__value == other.__value
+        return False
 
     def set_known(self, value: bool) -> None:
         self.__known = value
+
+    def get_known(self) -> bool:
+        return self.__known
 
     def set_owner(self, player: Hand) -> None:
         self.__owner = player
@@ -248,7 +266,10 @@ class dumb_player(AI):
 
     def call_tamaloo(self) -> bool:
         if self.__hand.get_game().get_runned_cycles() > 5:
-            return random.choice([True, False, False])
+            tamaloo = random.choice([True, False, False])
+            if tamaloo:
+                print("Tamaloo was called by a dumb player")
+            return tamaloo
 
     def pick_king_target(self) -> int:
         available_indexes = list(
