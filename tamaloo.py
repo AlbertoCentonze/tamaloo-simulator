@@ -1,9 +1,11 @@
 from __future__ import annotations
 import random
+from math import floor
 
 
 class Game:
-    def __init__(self, players: int = 2):
+    def __init__(self, players: int = 2, output: bool = False):
+        self.__output = output
         self.__deck = []
         self.__players = []
         self.__thrown_card = None
@@ -26,7 +28,12 @@ class Game:
         return self.__runned_cycles
 
     def print_game_info(self) -> None:
-        print("Next card " + str(self.__deck[-1]))
+        if self.__output:
+            return
+        try:
+            print("Next card " + str(self.__deck[-1]))
+        except:
+            print("Error")
         if self.__thrown_card is not None:
             print("Last card thrown " + str(self.__thrown_card))
         print(self.__players)
@@ -34,16 +41,16 @@ class Game:
     def simulate_cycle(self) -> bool:
         tamaloo = False
         for index, hand in enumerate(self.__players):
-            print("It's the turn of player " + str(index + 1))
-            self.print_game_info()
-            input()
+            if self.__output:
+                print("It's the turn of player " + str(index + 1))
+                self.print_game_info()
+            # input()
             hand.draw_and_replace()
             self.throw_same_card()
             tamaloo = tamaloo or hand.get_ai().call_tamaloo()
-            if (len(self.__deck) == 0):
-                print("deck refilled")
+            if (len(self.__deck) == 1):
                 self.refill_deck()
-                input()
+                # input()
         self.__runned_cycles += 1
         return tamaloo
 
@@ -57,16 +64,19 @@ class Game:
         for x in range(4):
             for i in list(range(1, 14)):
                 self.__deck.append(Card(i))
+        if self.__output:
+            print("deck refilled")
 
     def throw_same_card(self):
         for player in self.__players:
             for card in player.get_cards():
                 if random.choice([True, False]) and card == self.__thrown_card and card.get_known():
                     player.get_cards().remove(card)
-                    print("Player " + str(player.get_player_index() + 1) +
-                          " remembered correctly a card")
-                    print(self.__players)
-                    input()
+                    if self.__output:
+                        print("Player " + str(player.get_player_index() + 1) +
+                              " remembered correctly a card")
+                        print(self.__players)
+                    # input()
 
     def find_winner(self) -> list(int):
         min_value = 1000000
@@ -97,8 +107,7 @@ class Game:
 
     def set_thrown_card(self, card: Card) -> None:
         self.__thrown_card = card
-        # card.side_effect()
-        card.set_owner(None)
+        card.side_effect()
         card.set_known(None)
 
     def get_thrown_card(self) -> Card:
@@ -122,7 +131,11 @@ class Hand:
             self.__cards.append(card)
 
     def draw_and_replace(self) -> None:
-        new_card = self.get_game().get_deck().pop()
+        try:
+            new_card = self.get_game().get_deck().pop()
+        except:
+            self.get_game().refill_deck()
+            return self.draw_and_replace()
         new_card.set_owner(self)
         replacement_scores = []
         for old_card in self.__cards:
@@ -157,6 +170,7 @@ class Hand:
 
     def get_card(self, index: int = -1) -> Card:
         if index == -1:
+            print(len(self.__cards))
             return random.choice(self.__cards)
         return self.__cards[index]
 
@@ -214,13 +228,9 @@ class Card:
         return self.__known
 
     def set_owner(self, player: Hand) -> None:
-        if isinstance(self.__owner, Card):
-            print("PROBELMA")
         self.__owner = player
 
     def get_owner(self) -> Hand:
-        if isinstance(self.__owner, Card):
-            print("PROBELMA")
         return self.__owner
 
     def get_value(self) -> int:
@@ -230,7 +240,7 @@ class Card:
         if (self.__value == 13):
             self.__king()
         elif (self.__value == 12):
-            self.__queen()
+            pass  # self.__queen()
         elif (self.__value == 11):
             self.__joker()
 
@@ -239,16 +249,13 @@ class Card:
         self.get_owner().get_game().get_player(player_index).draw()
 
     def __queen(self) -> None:
-        cards = self.get_owner().get_ai().pick_queen_targets()
-        if len(cards) != 2:
-            print("problema")
-        if cards[1] is None:
-            print("problema")
-        Hand.switch_cards_between_players(cards[0], cards[1])
+        c1, c2 = self.get_owner().get_ai().pick_queen_targets()
+        Hand.switch_cards_between_players(c1, c2)
 
     def __joker(self) -> None:
         card = self.get_owner().get_ai().pick_joker_target()
-        card.set_known(True)
+        if card is not None:
+            card.set_known(True)
 
 
 class AI:
@@ -320,9 +327,18 @@ class dumb_player(AI):
         return picked_cards
 
     def pick_joker_target(self) -> Card:
-        return self.get_player_hand().get_card()
+        if len(self.get_player_hand().get_cards()):
+            return self.get_player_hand().get_card()
+        return None
 
 
 if __name__ == "__main__":
-    game = Game(6)
-    game.simulate_game()
+    i = 2
+    n = 0
+    while n < 500:
+        while i < floor(52/4):
+            game = Game(i)
+            game.simulate_game()
+            i += 1
+            print(n)
+        n += 1
