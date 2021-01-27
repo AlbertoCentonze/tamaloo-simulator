@@ -57,11 +57,14 @@ class Game:
         self.__runned_cycles += 1
         return tamaloo
 
-    def simulate_game(self) -> None:
-        while not self.simulate_cycle():
-            pass
-        self.simulate_cycle()
-        self.find_winner()
+    def simulate_game(self, times: int) -> None:
+        current_attempt = 0
+        while current_attempt < times:
+            while not self.simulate_cycle():
+                pass
+            self.simulate_cycle()
+            self.find_winner()
+            current_attempt += 1
 
     def refill_deck(self) -> None:
         for x in range(4):
@@ -192,7 +195,6 @@ class Hand:
         return "p" + str(self.__player_index + 1)
 
     def switch_cards_between_players(c1: Card, c2: Card) -> None:
-        print("bella")
         hand1 = c1.get_owner().get_cards()
         hand2 = c2.get_owner().get_cards()
         hand1.append(c2)
@@ -349,12 +351,7 @@ class dumb_player(AI):
 
 if __name__ == "__main__":
     i = 2
-    n = 0
-    while n < 500:
-        while i < floor(52/4):
-            print(n)
-            game = Game(i)
-            game.simulate_game()
-            i += 1
-        i = 2
-        n += 1
+    while i < floor(52/4):
+        game = Game(i)
+        game.simulate_game(5000)
+        i += 1
