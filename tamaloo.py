@@ -15,6 +15,9 @@ class Game:
         for p in range(players):
             self.__players.append(Hand(self, p, dumb_player))
 
+    def get_output(self) -> bool:
+        return self.__output
+
     def get_deck(self) -> list[Card]:
         return self.__deck
 
@@ -93,7 +96,8 @@ class Game:
                 winner_indexes.append(index)
             elif cards_sum == min_value:
                 winner_indexes.append(index)
-
+        if not self.__output:
+            return winner_indexes
         if len(winner_indexes) == 1:
             print("The winner is player " + str(winner_indexes[0]))
         elif len(winner_indexes) > 1:
@@ -170,7 +174,6 @@ class Hand:
 
     def get_card(self, index: int = -1) -> Card:
         if index == -1:
-            print(len(self.__cards))
             return random.choice(self.__cards)
         return self.__cards[index]
 
@@ -189,15 +192,16 @@ class Hand:
         return "p" + str(self.__player_index + 1)
 
     def switch_cards_between_players(c1: Card, c2: Card) -> None:
+        print("bella")
         hand1 = c1.get_owner().get_cards()
         hand2 = c2.get_owner().get_cards()
         hand1.append(c2)
         hand2.append(c1)
         c1.set_known(False)
+        c2.set_known(False)
         tmp_owner = c1.get_owner()
         c1.set_owner(c2.get_owner())
         c2.set_owner(tmp_owner)
-        c2.set_known(False)
         hand1.remove(c1)
         hand2.remove(c2)
 
@@ -240,7 +244,7 @@ class Card:
         if (self.__value == 13):
             self.__king()
         elif (self.__value == 12):
-            pass  # self.__queen()
+            self.__queen()
         elif (self.__value == 11):
             self.__joker()
 
@@ -249,8 +253,10 @@ class Card:
         self.get_owner().get_game().get_player(player_index).draw()
 
     def __queen(self) -> None:
-        c1, c2 = self.get_owner().get_ai().pick_queen_targets()
-        Hand.switch_cards_between_players(c1, c2)
+        cards = self.get_owner().get_ai().pick_queen_targets()
+        if len(cards) == 0:
+            return
+        Hand.switch_cards_between_players(cards[0], cards[1])
 
     def __joker(self) -> None:
         card = self.get_owner().get_ai().pick_joker_target()
@@ -264,8 +270,11 @@ class AI:
     def __init__(self, player: Hand):
         self.__hand = player
 
-    def get_player_hand(self):
+    def get_player_hand(self) -> Hand:
         return self.__hand
+
+    def get_output(self) -> bool:
+        return self.__hand.get_game().get_output()
 
     def replace_card(self, new_card: Card) -> score:
         raise Exception("empty replace card ai")
@@ -284,7 +293,8 @@ class AI:
 
     def call_tamaloo(self) -> bool:
         if len(self.get_player_hand().get_cards()) == 0:
-            print("Tamaloo was called because an hand was emtpy")
+            if self.get_output():
+                print("Tamaloo was called because an hand was emtpy")
             return True
 
 
@@ -302,7 +312,7 @@ class dumb_player(AI):
         super().call_tamaloo()
         if self.get_player_hand().get_game().get_runned_cycles() > 5:
             tamaloo = random.choice([True, False, False])
-            if tamaloo:
+            if tamaloo and super().get_output():
                 print("Tamaloo was called by a dumb player")
             return tamaloo
 
@@ -313,18 +323,23 @@ class dumb_player(AI):
         return random.choice(available_indexes)
 
     def pick_queen_targets(self) -> list[Card]:
-        picked_cards = []
-        available_indexes = list(
-            range(self.get_player_hand().get_game().get_players_number()))
-        i1 = random.choice(available_indexes)
-        i2 = i1
-        while i2 == i1:
-            i2 = random.choice(available_indexes)
-        p1 = self.get_player_hand().get_game().get_player(i1)
-        p2 = self.get_player_hand().get_game().get_player(i2)
-        picked_cards.append(p1.get_card())
-        picked_cards.append(p2.get_card())
-        return picked_cards
+        try:
+            available_indexes = list(
+                range(self.get_player_hand().get_game().get_players_number()))
+            i1 = random.choice(available_indexes)
+            i2 = i1
+            while i2 == i1:
+                i2 = random.choice(available_indexes)
+            players = []
+            players.append(self.get_player_hand().get_game().get_player(i1))
+            players.append(self.get_player_hand().get_game().get_player(i2))
+            picked_cards = []
+            for p in players:
+                cards_indexes = list(range(len(p.get_card())))
+                picked_cards.append(random.choice(cards_indexes))
+            return picked_cards
+        except:
+            return []
 
     def pick_joker_target(self) -> Card:
         if len(self.get_player_hand().get_cards()):
@@ -337,8 +352,9 @@ if __name__ == "__main__":
     n = 0
     while n < 500:
         while i < floor(52/4):
+            print(n)
             game = Game(i)
             game.simulate_game()
             i += 1
-            print(n)
+        i = 2
         n += 1
