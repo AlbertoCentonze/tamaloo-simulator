@@ -4,12 +4,13 @@ from math import floor
 
 
 class Game:
-    def __init__(self, players: int = 2, output: bool = False):
+    def __init__(self, players: int = 2, stats: Stats = None, output: bool = False):
         self.__output = output
         self.__deck = []
         self.__players = []
         self.__thrown_card = None
         self.__runned_cycles = 0
+        self.__stats = stats
         self.refill_deck()
         random.shuffle(self.__deck)
         for p in range(players):
@@ -108,9 +109,13 @@ class Game:
             for index in winner_indexes:
                 winners += (str(index) + " ")
             print("The winner are players " + winners)
-        print(all_scores)
+        print(all_scores)            
 
-        return winner_indexes
+        stats = []
+        for index in winner_indexes:
+            stats.append(self.get_player(index).get_ai().get_name())
+        return stats
+
 
     def set_thrown_card(self, card: Card) -> None:
         self.__thrown_card = card
@@ -299,6 +304,10 @@ class AI:
                 print("Tamaloo was called because an hand was emtpy")
             return True
 
+    def get_name(self) -> str:
+        return ""
+
+
 
 class dumb_player(AI):
     def __init__(self, player: Hand):
@@ -348,10 +357,31 @@ class dumb_player(AI):
             return self.get_player_hand().get_card()
         return None
 
+    def get_name(self) -> str:
+        return "dumb_player"
+
+class Stats:
+    def __init__(self, file_name: str = "") -> None:
+        self.clean_stats()
+        self.file = open(f"stats{file_name}.txt", "w+")
+
+    def clean_stats(self) -> None:
+        self.scores = {}
+
+    def save_stats(self) -> None:
+        self.file.write(self.scores)
+
+    def add_stats(self, result: list[str]) -> None:
+        key, value = result
+        self.scores[key] = value 
+        
+
+
 
 if __name__ == "__main__":
+    stats = Stats()
     i = 2
     while i < floor(52/4):
-        game = Game(i)
+        game = Game(i, stats)
         game.simulate_game(5000)
         i += 1
